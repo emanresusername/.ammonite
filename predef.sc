@@ -15,7 +15,6 @@ val raptureVersion = "2.0.0-M8"
 Seq(
   "com.lihaoyi"            %% "ammonite-shell"      % ammonite.Constants.version,
   "com.github.kxbmap"      %% "configs"             % "0.4.4",
-  "com.github.nscala-time" %% "nscala-time"         % "2.16.0",
   "net.ruippeixotog"       %% "scala-scraper"       % "1.2.0",
   "org.apache.poi"          % "poi-ooxml"           % "3.15",
   "io.circe"               %% "circe-core"          % circeVersion,
@@ -44,10 +43,10 @@ import sys.process._
 
 import scala.util.{ Try, Success, Failure, Random }
 
-import scala.concurrent.duration.{ Duration => SDuration, MILLISECONDS, FiniteDuration }
+import scala.concurrent.duration._
 import scala.concurrent.{Future, Await}
-import com.github.nscala_time.time.{ Imports, DurationBuilder }, Imports._
-implicit def durationBuilderToScalaDuration(d: DurationBuilder): FiniteDuration = FiniteDuration(d.millis, MILLISECONDS)
+import java.time
+import time.{LocalDateTime, Instant, ZoneId, format}, format.DateTimeFormatter
 
 import rapture.core.EnrichedString
 import rapture.uri._
@@ -85,7 +84,10 @@ private[this] def whoami = {
 }
 
 private[this] def date = {
-  DateTime.now.toLocalDateTime
+  LocalDateTime.ofInstant(
+    Instant.now,
+    ZoneId.systemDefault
+  ).format(DateTimeFormatter.ofPattern("E, MMMM | YYYY-MM-dd HH:mm:ss"))
 }
 
 repl.prompt.bind(
