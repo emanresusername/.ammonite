@@ -41,6 +41,8 @@ import configs.Configs
 
 import sys.process._
 
+import scala.collection.JavaConversions._
+
 import scala.util.{ Try, Success, Failure, Random }
 
 import scala.concurrent.duration._
