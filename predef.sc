@@ -24,7 +24,8 @@ Seq(
   "com.propensive"         %% "rapture-json-circe"  % raptureVersion,
   "com.propensive"         %% "rapture-io"          % raptureVersion,
   "com.propensive"         %% "rapture-uri"         % raptureVersion,
-  "com.propensive"         %% "rapture-net"         % raptureVersion
+  "com.propensive"         %% "rapture-net"         % raptureVersion,
+  "com.github.javafaker"    % "javafaker"           % "0.12"
 ).foreach(interp.load.ivy(_))
 @
 val shellSession = ammonite.shell.ShellSession()
@@ -64,6 +65,8 @@ implicit val encodeRapture = new io.circe.Encoder[Json] {
   final def apply(json: Json): io.circe.Json = json.as[io.circe.Json]
 }
 import gnieh.diffson.circe._
+
+val faker = new com.github.javafaker.Faker
 
 def pbcopy(text: String) = {
   ("pbcopy" #< new java.io.ByteArrayInputStream(text.getBytes))!
