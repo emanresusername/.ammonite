@@ -9,18 +9,18 @@ val oss = Resolver.Http(
 
 interp.resolvers() = interp.resolvers() :+ oss
 
-val circeVersion = "0.7.0"
+val circeVersion = "0.7.+"
 val raptureVersion = "2.0.0-M8"
 
 Seq(
   "com.lihaoyi"            %% "ammonite-shell"      % ammonite.Constants.version,
-  "com.github.kxbmap"      %% "configs"             % "0.4.4",
-  "net.ruippeixotog"       %% "scala-scraper"       % "1.2.0",
+  "com.github.kxbmap"      %% "configs"             % "0.4.+",
+  "net.ruippeixotog"       %% "scala-scraper"       % "1.2.+",
   "org.apache.poi"          % "poi-ooxml"           % "3.15",
   "io.circe"               %% "circe-core"          % circeVersion,
   "io.circe"               %% "circe-generic"       % circeVersion,
   "io.circe"               %% "circe-parser"        % circeVersion,
-  "org.gnieh"              %% "diffson-circe"       % "2.1.2",
+  "org.gnieh"              %% "diffson-circe"       % "2.1.+",
   "com.propensive"         %% "rapture-json-circe"  % raptureVersion,
   "com.propensive"         %% "rapture-io"          % raptureVersion,
   "com.propensive"         %% "rapture-uri"         % raptureVersion,
