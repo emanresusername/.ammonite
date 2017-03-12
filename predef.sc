@@ -20,6 +20,7 @@ Seq(
   "io.circe"               %% "circe-core"          % circeVersion,
   "io.circe"               %% "circe-generic"       % circeVersion,
   "io.circe"               %% "circe-parser"        % circeVersion,
+  "io.circe"               %% "circe-optics"        % circeVersion,
   "org.gnieh"              %% "diffson-circe"       % "2.1.+",
   "com.propensive"         %% "rapture-json-circe"  % raptureVersion,
   "com.propensive"         %% "rapture-io"          % raptureVersion,
