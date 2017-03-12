@@ -25,7 +25,8 @@ Seq(
   "com.propensive"         %% "rapture-io"          % raptureVersion,
   "com.propensive"         %% "rapture-uri"         % raptureVersion,
   "com.propensive"         %% "rapture-net"         % raptureVersion,
-  "com.github.javafaker"    % "javafaker"           % "0.12"
+  "com.github.javafaker"    % "javafaker"           % "0.12",
+  "net.sourceforge.htmlunit" % "htmlunit" % "2.25"
 ).foreach(interp.load.ivy(_))
 @
 val shellSession = ammonite.shell.ShellSession()
