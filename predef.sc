@@ -11,23 +11,25 @@ interp.resolvers() = interp.resolvers() :+ oss
 
 val circeVersion = "0.7.+"
 val raptureVersion = "2.0.0-M8"
+val akkaVersion = "2.5.+"
 
 Seq(
-  "com.lihaoyi"            %% "ammonite-shell"      % ammonite.Constants.version,
-  "com.github.kxbmap"      %% "configs"             % "0.4.+",
-  "net.ruippeixotog"       %% "scala-scraper"       % "1.2.+",
-  "org.apache.poi"          % "poi-ooxml"           % "3.15",
-  "io.circe"               %% "circe-core"          % circeVersion,
-  "io.circe"               %% "circe-generic"       % circeVersion,
-  "io.circe"               %% "circe-parser"        % circeVersion,
-  "io.circe"               %% "circe-optics"        % circeVersion,
-  "org.gnieh"              %% "diffson-circe"       % "2.1.+",
-  "com.propensive"         %% "rapture-json-circe"  % raptureVersion,
-  "com.propensive"         %% "rapture-io"          % raptureVersion,
-  "com.propensive"         %% "rapture-uri"         % raptureVersion,
-  "com.propensive"         %% "rapture-net"         % raptureVersion,
-  "com.github.javafaker"    % "javafaker"           % "0.12",
-  "net.sourceforge.htmlunit" % "htmlunit" % "2.25"
+  "com.lihaoyi"              %% "ammonite-shell"      % ammonite.Constants.version,
+  "com.github.kxbmap"        %% "configs"             % "0.4.+",
+  "net.ruippeixotog"         %% "scala-scraper"       % "1.2.+",
+  "org.apache.poi"            % "poi-ooxml"           % "3.15",
+  "io.circe"                 %% "circe-core"          % circeVersion,
+  "io.circe"                 %% "circe-generic"       % circeVersion,
+  "io.circe"                 %% "circe-parser"        % circeVersion,
+  "io.circe"                 %% "circe-optics"        % circeVersion,
+  "org.gnieh"                %% "diffson-circe"       % "2.1.+",
+  "com.propensive"           %% "rapture-json-circe"  % raptureVersion,
+  "com.propensive"           %% "rapture-io"          % raptureVersion,
+  "com.propensive"           %% "rapture-uri"         % raptureVersion,
+  "com.propensive"           %% "rapture-net"         % raptureVersion,
+  "com.github.javafaker"      % "javafaker"           % "0.12",
+  "net.sourceforge.htmlunit"  % "htmlunit"            % "2.26",
+  "com.typesafe.akka"        %% "akka-actor"          % akkaVersion
 ).foreach(interp.load.ivy(_))
 @
 val shellSession = ammonite.shell.ShellSession()
@@ -116,3 +118,18 @@ repl.prompt.bind(
     Option("\nᕕ( ᐛ )ᕗ ")
   ).flatten.mkString
 )
+
+import akka.actor.ActorSystem
+
+implicit val actorSystem = ActorSystem()
+import actorSystem.{dispatcher, log, scheduler}
+
+repl.beforeExitHooks += { _ ⇒
+  log.debug("terminating actor system")
+  actorSystem.terminate.onComplete {
+    case Success(terminated) ⇒
+      println(terminated)
+    case Failure(c) ⇒
+      log.error(c, "in soviet russia, actor system terminate you")
+  }
+}
