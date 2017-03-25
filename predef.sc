@@ -62,10 +62,20 @@ import rapture.codec._, encodings.`UTF-8`._
 import io.circe.generic.auto._, io.circe.syntax._
 import rapture.json.jsonBackends.circe._
 import rapture.json.Json
-import rapture.json.formatters.humanReadable._
-implicit val encodeRapture = new io.circe.Encoder[Json] {
-  final def apply(json: Json): io.circe.Json = json.as[io.circe.Json]
+import io.circe.{Json ⇒ Circe}
+
+implicit class RaptureJson(json: Json) {
+  def asCirce: Circe = {
+    json.as[Circe]
+  }
 }
+
+implicit class CirceJson(json: Circe) {
+  def asRapture: Json = {
+    Json(json)
+  }
+}
+
 import gnieh.diffson.circe._
 
 val faker = new com.github.javafaker.Faker
