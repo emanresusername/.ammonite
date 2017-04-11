@@ -52,8 +52,11 @@ case class MediaManager(mediaDir: Path)(implicit wd: Path = pwd) {
 @main
 def main(musicDir: Path) = {
   val mediaManager = MediaManager(musicDir)
+  Seq(
+    "mp4",
+    "m4a",
+    "webm"
+  ).foreach(mediaManager.convertToMp3s)
   mediaManager.trashSmallMp3s
-  mediaManager.convertToMp3s("mp4")
-  mediaManager.convertToMp3s("webm")
   mediaManager.importMp3s
 }
