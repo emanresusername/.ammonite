@@ -63,14 +63,12 @@ import rapture.codec._, encodings.`UTF-8`._
 
 import scala.io.Source
 import java.util.zip.GZIPInputStream
-import java.io.ByteArrayInputStream
+import java.net.URL
 
 def httpGetGzipped(url: String): Source = {
   Source.fromInputStream(
     new GZIPInputStream(
-      new ByteArrayInputStream(
-        url.as[HttpQuery].slurp[Byte].bytes
-      )
+      new URL(url).openStream()
     )
   )
 }
