@@ -9,8 +9,8 @@ val oss = Resolver.Http(
 
 interp.resolvers() = interp.resolvers() :+ oss
 
-val circeVersion = "0.7.+"
-val raptureVersion = "2.0.0-M8"
+val circeVersion = "0.8.+"
+val raptureVersion = "2.0.0-M9"
 val akkaVersion = "2.5.+"
 
 Seq(
@@ -61,6 +61,20 @@ import rapture.io._
 import rapture.net._
 import rapture.codec._, encodings.`UTF-8`._
 
+import scala.io.Source
+import java.util.zip.GZIPInputStream
+import java.io.ByteArrayInputStream
+
+def httpGetGzipped(url: String): Source = {
+  Source.fromInputStream(
+    new GZIPInputStream(
+      new ByteArrayInputStream(
+        url.as[HttpQuery].slurp[Byte].bytes
+      )
+    )
+  )
+}
+
 import io.circe.generic.auto._, io.circe.syntax._
 import rapture.json.jsonBackends.circe._
 import rapture.json.Json
@@ -82,6 +96,7 @@ import gnieh.diffson.circe._
 
 val faker = new com.github.javafaker.Faker
 
+// https://github.com/lihaoyi/Ammonite/issues/367
 def pbcopy(text: String) = {
   ("pbcopy" #< new java.io.ByteArrayInputStream(text.getBytes))!
 }
