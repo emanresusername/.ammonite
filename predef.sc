@@ -1,14 +1,3 @@
-import Resolvers._
-
-val oss = Resolver.Http(
-  "Sonatype OSS Snapshots",
-  "https://oss.sonatype.org/content/repositories/snapshots",
-  MavenPattern,
-  true
-)
-
-interp.resolvers() = interp.resolvers() :+ oss
-
 val circeVersion = "0.8.+"
 val raptureVersion = "2.0.0-M9"
 val akkaVersion = "2.5.+"
@@ -137,7 +126,7 @@ import akka.actor.ActorSystem
 implicit val actorSystem = ActorSystem()
 import actorSystem.{dispatcher, log, scheduler}
 
-repl.beforeExitHooks += { _ ⇒
+interp.beforeExitHooks += { _ ⇒
   log.debug("terminating actor system")
   actorSystem.terminate.onComplete {
     case Success(terminated) ⇒
