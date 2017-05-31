@@ -1,9 +1,10 @@
 val circeVersion = "0.8.+"
 val raptureVersion = "2.0.0-M9"
 val akkaVersion = "2.5.+"
+val ammoniteGroup = s"ammonite-shell_${util.Properties.versionNumberString}"
 
 Seq(
-  "com.lihaoyi"              %% "ammonite-shell"      % ammonite.Constants.version,
+  "com.lihaoyi"               % ammoniteGroup         % ammonite.Constants.version,
   "com.github.kxbmap"        %% "configs"             % "0.4.+",
   "net.ruippeixotog"         %% "scala-scraper"       % "1.2.+",
   "org.apache.poi"            % "poi-ooxml"           % "3.15",
@@ -23,9 +24,7 @@ Seq(
 @
 val shellSession = ammonite.shell.ShellSession()
 import shellSession._
-import ammonite.shell.PPrints._
 import ammonite.ops._
-
 import ammonite.shell._
 ammonite.shell.Configure(repl, wd)
 
