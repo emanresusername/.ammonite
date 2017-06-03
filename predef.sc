@@ -15,6 +15,7 @@ Seq(
   "org.typelevel"        %% "squants"             % "1.3.0",
   "net.ruippeixotog"     %% "scala-scraper"       % "2.0.0-RC2",
   "fr.hmil"              %% "roshttp"             % "2.0.1",
+  "eu.timepit"           %% "refined"             % "0.8.2",
   "io.monix"             %% "monix"               % monixVersion
 ).foreach(interp.load.ivy(_))
 @
@@ -48,7 +49,6 @@ implicit class CirceJson(json: Circe) {
 
 import gnieh.diffson.circe._
 
-import scala.language.postfixOps
 import squants.energy.EnergyConversions._
 import squants.energy.PowerConversions._
 import squants.information.InformationConversions._
@@ -65,6 +65,8 @@ implicit def durationToFiniteDuration(duration: Duration): FiniteDuration = dura
 val faker = new com.github.javafaker.Faker
 
 import java.time
+import java.time.format.DateTimeFormatter
+import java.time.{LocalDate, LocalDateTime, Instant}
 
 import java.awt, awt.datatransfer.{StringSelection, Clipboard, DataFlavor}
 def clipboard: Clipboard = {
@@ -107,21 +109,47 @@ private[this] def whoami = {
 }
 
 private[this] def date = {
-  time.LocalDateTime.now.format(time.format.DateTimeFormatter.ofPattern("E, MMMM | YYYY-MM-dd HH:mm:ss"))
+  LocalDateTime.now.format(DateTimeFormatter.ofPattern("E, MMMM | YYYY-MM-dd HH:mm:ss"))
 }
 
 import fr.hmil.roshttp.HttpRequest
 import monix.execution.Scheduler.Implicits.global
+import scala.concurrent.Future
+
+import eu.timepit.refined._
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.auto._
+import eu.timepit.refined.string.Url
 
 import net.ruippeixotog.scalascraper.dsl.DSL._
 import net.ruippeixotog.scalascraper.dsl.DSL.Extract._
 import net.ruippeixotog.scalascraper.dsl.DSL.Parse._
-import net.ruippeixotog.scalascraper.model._
-def htmlDoc(html: String) = {
-  net.ruippeixotog.scalascraper.browser.JsoupBrowser().parseString(html)
+import net.ruippeixotog.scalascraper.model.Document
+import net.ruippeixotog.scalascraper.browser.{HtmlUnitBrowser, JsoupBrowser}
+lazy val jsoupBrowser = JsoupBrowser()
+lazy val htmlUnitBrowser = HtmlUnitBrowser()
+def htmlDoc(html: String): Document = {
+  jsoupBrowser.parseString(html)
 }
 
-import scala.concurrent.Future
+def getHtmlDoc(httpRequest: HttpRequest): Future[Document] = {
+  for {
+    response ← httpRequest.get
+  } yield {
+    htmlDoc(response.body)
+  }
+}
+
+def refinedGetHtmlDoc(url: String Refined Url): Future[Document] = {
+  getHtmlDoc(HttpRequest(url))
+}
+
+def getHtmlDoc(url: String): Future[Document] = {
+  Future {
+    refineV[Url].unsafeFrom(url)
+  }.flatMap(refinedGetHtmlDoc)
+}
+
 def externalIp: Future[String] = {
   HttpRequest("https://icanhazip.com").get.map(_.body.trim)
 }
@@ -135,14 +163,38 @@ def copyExternalIp: Future[String] = {
 }
 def celebrityNetworth(query: String): Future[String] = {
   for {
-    resultsResponse <- HttpRequest(s"http://www.celebritynetworth.com/dl/${query.replaceAllLiterally(" ", "-")}/").get
-    resultsDoc = htmlDoc(resultsResponse.body)
+    resultsDoc <- getHtmlDoc(s"http://www.celebritynetworth.com/dl/${query.replaceAllLiterally(" ", "-")}/")
     href = resultsDoc >> attr("href")(".search_result.lead>a")
-    resultResponse <- HttpRequest(href).get
-    resultDoc = htmlDoc(resultResponse.body)
+    resultDoc <- getHtmlDoc(href)
   } yield {
     resultDoc >> text(".networth>.value")
   }
+}
+
+def blazinTracks: Seq[(LocalDate, String)] = {
+  val host = "http://www.hiphopearly.com"
+  val recentTracks = htmlUnitBrowser.get(host)
+  val dateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMMdd")
+  for {
+    trackListing <- recentTracks >> elementList(".track-listing")
+    year ← trackListing >> texts("div.date>span.year")
+    month ← trackListing >> texts("div.date>span.month")
+    day ← trackListing >> texts("div.date>span.date")
+    localDate = LocalDate.from(dateTimeFormatter.parse(s"$year$month$day"))
+    href <- trackListing >> attrs("href")(".track.blazin>a[title]")
+  } yield {
+    localDate → s"$host/$href"
+  }
+}
+def datesBlazinTracks(dates: LocalDate*): Seq[String] = {
+  val dateSet = dates.toSet
+  blazinTracks.collect {
+    case (day, url) if dateSet.contains(day) ⇒
+      url
+  }
+}
+def todaysBlazinTracks: Seq[String] = {
+  datesBlazinTracks(LocalDate.now)
 }
 
 repl.prompt.bind(
