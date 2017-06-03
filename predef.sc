@@ -1,25 +1,21 @@
 val circeVersion = "0.8.+"
 val raptureVersion = "2.0.0-M9"
-val akkaVersion = "2.5.+"
-val ammoniteGroup = s"ammonite-shell_${util.Properties.versionNumberString}"
+val ammoniteGroup = s"ammonite-shell_${scala.util.Properties.versionNumberString}"
+val monixVersion = "2.3.0"
 
 Seq(
-  "com.lihaoyi"               % ammoniteGroup         % ammonite.Constants.version,
-  "com.github.kxbmap"        %% "configs"             % "0.4.+",
-  "net.ruippeixotog"         %% "scala-scraper"       % "1.2.+",
-  "org.apache.poi"            % "poi-ooxml"           % "3.15",
-  "io.circe"                 %% "circe-core"          % circeVersion,
-  "io.circe"                 %% "circe-generic"       % circeVersion,
-  "io.circe"                 %% "circe-parser"        % circeVersion,
-  "io.circe"                 %% "circe-optics"        % circeVersion,
-  "org.gnieh"                %% "diffson-circe"       % "2.1.+",
-  "com.propensive"           %% "rapture-json-circe"  % raptureVersion,
-  "com.propensive"           %% "rapture-io"          % raptureVersion,
-  "com.propensive"           %% "rapture-uri"         % raptureVersion,
-  "com.propensive"           %% "rapture-net"         % raptureVersion,
-  "com.github.javafaker"      % "javafaker"           % "0.12",
-  "net.sourceforge.htmlunit"  % "htmlunit"            % "2.26",
-  "com.typesafe.akka"        %% "akka-actor"          % akkaVersion
+  "com.lihaoyi"           % ammoniteGroup         % ammonite.Constants.version,
+  "io.circe"             %% "circe-core"          % circeVersion,
+  "io.circe"             %% "circe-generic"       % circeVersion,
+  "io.circe"             %% "circe-parser"        % circeVersion,
+  "io.circe"             %% "circe-optics"        % circeVersion,
+  "org.gnieh"            %% "diffson-circe"       % "2.2.+",
+  "com.propensive"       %% "rapture-json-circe"  % raptureVersion,
+  "com.github.javafaker"  % "javafaker"           % "0.+",
+  "org.typelevel"        %% "squants"             % "1.3.0",
+  "net.ruippeixotog"     %% "scala-scraper"       % "2.0.0-RC2",
+  "fr.hmil"              %% "roshttp"             % "2.0.1",
+  "io.monix"             %% "monix"               % monixVersion
 ).foreach(interp.load.ivy(_))
 @
 val shellSession = ammonite.shell.ShellSession()
@@ -28,43 +24,15 @@ import ammonite.ops._
 import ammonite.shell._
 ammonite.shell.Configure(repl, wd)
 
-import com.typesafe.config.ConfigFactory
-import configs.syntax._
-import configs.Configs
-
-import sys.process._
-
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 import scala.util.{ Try, Success, Failure, Random }
-
-import scala.concurrent.duration._
-import scala.concurrent.{Future, Await}
-import java.time
-import time.{LocalDateTime, Instant, ZoneId, format}, format.DateTimeFormatter
-
-import rapture.core.EnrichedString
-import rapture.uri._
-import rapture.io._
-import rapture.net._
-import rapture.codec._, encodings.`UTF-8`._
-
-import scala.io.Source
-import java.util.zip.GZIPInputStream
-import java.net.URL
-
-def httpGetGzipped(url: String): Source = {
-  Source.fromInputStream(
-    new GZIPInputStream(
-      new URL(url).openStream()
-    )
-  )
-}
 
 import io.circe.generic.auto._, io.circe.syntax._
 import rapture.json.jsonBackends.circe._
 import rapture.json.Json
 import io.circe.{Json ⇒ Circe}
+import io.circe.optics.JsonPath
 
 implicit class RaptureJson(json: Json) {
   def asCirce: Circe = {
@@ -80,18 +48,53 @@ implicit class CirceJson(json: Circe) {
 
 import gnieh.diffson.circe._
 
-val faker = new com.github.javafaker.Faker
+import scala.language.postfixOps
+import squants.energy.EnergyConversions._
+import squants.energy.PowerConversions._
+import squants.information.InformationConversions._
+import squants.market.MoneyConversions._
+import squants.space.LengthConversions._
+import squants.time.TimeConversions._
 
-// https://github.com/lihaoyi/Ammonite/issues/367
-def pbcopy(text: String) = {
-  ("pbcopy" #< new java.io.ByteArrayInputStream(text.getBytes))!
+import scala.concurrent.duration.{FiniteDuration, Duration}
+implicit def durationToFiniteDuration(duration: Duration): FiniteDuration = duration match {
+  case finiteDuration: FiniteDuration ⇒
+    finiteDuration
 }
 
-def pbpaste = %%('pbpaste).out.string
+val faker = new com.github.javafaker.Faker
 
-private[this] def current_branch = {
+import java.time
+
+import java.awt, awt.datatransfer.{StringSelection, Clipboard, DataFlavor}
+def clipboard: Clipboard = {
+  awt.Toolkit.getDefaultToolkit.getSystemClipboard
+}
+
+def pbcopy(string: String): Unit = {
+  val stringSelection = new StringSelection(string)
+  clipboard.setContents(
+    stringSelection,
+    stringSelection
+  )
+}
+
+def pbpaste: String = {
+  import DataFlavor.stringFlavor
+  val reader = stringFlavor.getReaderForText(
+    clipboard.getContents(stringFlavor)
+  )
+  new String(
+    Iterator.continually(reader.read)
+      .takeWhile(_ != -1)
+      .map(_.toByte)
+      .toArray
+  )
+}
+
+private[this] def gitBranch = {
   scala.util.Try {
-    ((%%git('branch)).out.lines.filter(grep!("""\*""".r))).head.substring(2)
+    (%%git('status, "-b", "--porcelain")).out.lines.head.drop(3)
   }.toOption
 }
 
@@ -100,37 +103,54 @@ private[this] def hostname = {
 }
 
 private[this] def whoami = {
-  (%%whoami).out.lines.head
+  sys.env("USER")
 }
 
 private[this] def date = {
-  LocalDateTime.ofInstant(
-    Instant.now,
-    ZoneId.systemDefault
-  ).format(DateTimeFormatter.ofPattern("E, MMMM | YYYY-MM-dd HH:mm:ss"))
+  time.LocalDateTime.now.format(time.format.DateTimeFormatter.ofPattern("E, MMMM | YYYY-MM-dd HH:mm:ss"))
+}
+
+import fr.hmil.roshttp.HttpRequest
+import monix.execution.Scheduler.Implicits.global
+
+import net.ruippeixotog.scalascraper.dsl.DSL._
+import net.ruippeixotog.scalascraper.dsl.DSL.Extract._
+import net.ruippeixotog.scalascraper.dsl.DSL.Parse._
+import net.ruippeixotog.scalascraper.model._
+def htmlDoc(html: String) = {
+  net.ruippeixotog.scalascraper.browser.JsoupBrowser().parseString(html)
+}
+
+import scala.concurrent.Future
+def externalIp: Future[String] = {
+  HttpRequest("https://icanhazip.com").get.map(_.body.trim)
+}
+def copyExternalIp: Future[String] = {
+  for {
+    ip ← externalIp
+  } yield {
+    pbcopy(ip)
+    ip
+  }
+}
+def celebrityNetworth(query: String): Future[String] = {
+  for {
+    resultsResponse <- HttpRequest(s"http://www.celebritynetworth.com/dl/${query.replaceAllLiterally(" ", "-")}/").get
+    resultsDoc = htmlDoc(resultsResponse.body)
+    href = resultsDoc >> attr("href")(".search_result.lead>a")
+    resultResponse <- HttpRequest(href).get
+    resultDoc = htmlDoc(resultResponse.body)
+  } yield {
+    resultDoc >> text(".networth>.value")
+  }
 }
 
 repl.prompt.bind(
   Seq(
     Option(s"$whoami@$hostname:${wd.toString}[$date]"),
-    current_branch.map(branch => {
+    gitBranch.map(branch => {
                          s"<$branch>"
                        }),
     Option("\nᕕ( ᐛ )ᕗ ")
   ).flatten.mkString
 )
-
-import akka.actor.ActorSystem
-
-implicit val actorSystem = ActorSystem()
-import actorSystem.{dispatcher, log, scheduler}
-
-interp.beforeExitHooks += { _ ⇒
-  log.debug("terminating actor system")
-  actorSystem.terminate.onComplete {
-    case Success(terminated) ⇒
-      println(terminated)
-    case Failure(c) ⇒
-      log.error(c, "in soviet russia, actor system terminate you")
-  }
-}
