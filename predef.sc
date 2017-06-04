@@ -126,8 +126,57 @@ import net.ruippeixotog.scalascraper.dsl.DSL.Extract._
 import net.ruippeixotog.scalascraper.dsl.DSL.Parse._
 import net.ruippeixotog.scalascraper.model.Document
 import net.ruippeixotog.scalascraper.browser.{HtmlUnitBrowser, JsoupBrowser}
-lazy val jsoupBrowser = JsoupBrowser()
-lazy val htmlUnitBrowser = HtmlUnitBrowser()
+import net.ruippeixotog.scalascraper.util.ProxyUtils
+
+def torify: Unit = {
+  ProxyUtils.setSocksProxy("localhost", 9050)
+}
+torify
+
+def privoxify: Unit = {
+  ProxyUtils.setProxy("localhost", 8118)
+}
+privoxify
+
+def withoutProxys[T](f: ⇒ Future[T]): Future[T] = {
+  Future {
+    val httpProxy = ProxyUtils.getProxy
+    val socksProxy = ProxyUtils.getSocksProxy
+    ProxyUtils.removeProxy
+    ProxyUtils.removeSocksProxy
+    httpProxy → socksProxy
+  }.flatMap {
+    case (httpProxy, socksProxy) ⇒
+      f.andThen {
+        case _ ⇒
+          httpProxy.foreach {
+            case (host, port) ⇒ ProxyUtils.setProxy(host, port)
+          }
+          socksProxy.foreach {
+            case (host, port) ⇒ ProxyUtils.setSocksProxy(host, port)
+          }
+      }
+  }
+}
+def withoutProxys[T](f: ⇒ T): T = {
+  withoutProxys { Future { f } }.value.get.get
+}
+
+lazy val jsoupBrowser = JsoupBrowser.typed()
+// NOTE: function because proxy settings locked in after first request
+def htmlUnitBrowser: HtmlUnitBrowser = {
+  HtmlUnitBrowser.typed()
+}
+def withHtmlUnitBrowser[T](f: (HtmlUnitBrowser) ⇒ T): T = {
+  val browser = htmlUnitBrowser
+  try {
+    f(browser)
+  } finally {
+    browser.clearCookies
+    browser.closeAll
+  }
+}
+
 def htmlDoc(html: String): Document = {
   jsoupBrowser.parseString(html)
 }
@@ -173,7 +222,7 @@ def celebrityNetworth(query: String): Future[String] = {
 
 def blazinTracks: Seq[(LocalDate, String)] = {
   val host = "http://www.hiphopearly.com"
-  val recentTracks = htmlUnitBrowser.get(host)
+  val recentTracks = withoutProxys(withHtmlUnitBrowser(_.get(host)))
   val dateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMMdd")
   for {
     trackListing <- recentTracks >> elementList(".track-listing")
