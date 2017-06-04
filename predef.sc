@@ -53,7 +53,7 @@ import squants.energy.EnergyConversions._
 import squants.energy.PowerConversions._
 import squants.information.InformationConversions._
 import squants.market.MoneyConversions._
-import squants.space.LengthConversions._
+import squants.space._, LengthConversions._
 import squants.time.TimeConversions._
 
 import scala.concurrent.duration.{FiniteDuration, Duration}
@@ -120,6 +120,15 @@ import eu.timepit.refined._
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.auto._
 import eu.timepit.refined.string.Url
+
+type AbvPrice = squants.Price[squants.Volume]
+def abvPrice(cost: squants.Money, abv: Double, volume: squants.Volume): AbvPrice = {
+  cost / (volume * (abv / 100))
+}
+def abvPrice(cost: squants.Money, proof: Int, volume: squants.Volume): AbvPrice = {
+  abvPrice(cost = cost, abv = proof / 2.0, volume = volume)
+}
+
 
 import net.ruippeixotog.scalascraper.dsl.DSL._
 import net.ruippeixotog.scalascraper.dsl.DSL.Extract._
