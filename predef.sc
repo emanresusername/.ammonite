@@ -1,29 +1,30 @@
+interp.repositories() ++= Seq(
+    coursier.maven.MavenRepository("https://jitpack.io")
+)
+
 val circeVersion = "0.8.+"
 val raptureVersion = "2.0.0-M9"
 val ammoniteGroup = s"ammonite-shell_${scala.util.Properties.versionNumberString}"
-val monixVersion = "2.3.0"
 
 Seq(
-  "com.lihaoyi"           % ammoniteGroup         % ammonite.Constants.version,
-  "io.monix"             %% "monix"               % monixVersion,
-  "io.circe"             %% "circe-core"          % circeVersion,
-  "io.circe"             %% "circe-generic"       % circeVersion,
-  "io.circe"             %% "circe-parser"        % circeVersion,
-  "io.circe"             %% "circe-optics"        % circeVersion,
-  "org.gnieh"            %% "diffson-circe"       % "2.2.+",
-  "com.propensive"       %% "rapture-json-circe"  % raptureVersion,
-  "com.github.javafaker"  % "javafaker"           % "0.+",
-  "org.typelevel"        %% "squants"             % "1.3.0",
-  "net.ruippeixotog"     %% "scala-scraper"       % "2.0.0-RC2",
-  "fr.hmil"              %% "roshttp"             % "2.0.1",
-  "eu.timepit"           %% "refined"             % "0.8.2"
+  "com.lihaoyi"                 % ammoniteGroup         % ammonite.Constants.version,
+  "com.github.emanresusername"  % "squants-fx"          % "0.0.1",
+  "io.circe"                   %% "circe-core"          % circeVersion,
+  "io.circe"                   %% "circe-generic"       % circeVersion,
+  "io.circe"                   %% "circe-parser"        % circeVersion,
+  "io.circe"                   %% "circe-optics"        % circeVersion,
+  "org.gnieh"                  %% "diffson-circe"       % "2.2.+",
+  "com.propensive"             %% "rapture-json-circe"  % raptureVersion,
+  "com.github.javafaker"        % "javafaker"           % "0.+",
+  "net.ruippeixotog"           %% "scala-scraper"       % "2.0.0-RC2",
+  "eu.timepit"                 %% "refined"             % "0.8.2"
 ).foreach(interp.load.ivy(_))
 @
 val shellSession = ammonite.shell.ShellSession()
 import shellSession._
 import ammonite.ops._
 import ammonite.shell._
-ammonite.shell.Configure(repl, wd)
+ammonite.shell.Configure(interp, repl, wd)
 
 import scala.collection.JavaConverters._
 
@@ -59,57 +60,19 @@ import squants.time.TimeConversions._
 
 import scala.concurrent.Future
 import scala.concurrent.Await
-import scala.concurrent.duration.{FiniteDuration, Duration}
-implicit def durationToFiniteDuration(duration: Duration): FiniteDuration = duration match {
-  case finiteDuration: FiniteDuration ⇒
-    finiteDuration
-}
 
 import monix.execution.Scheduler.Implicits.global
-import monix.eval.{MVar, Task}
-
 import fr.hmil.roshttp.HttpRequest
 
-type ExchangeRates = Iterable[CurrencyExchangeRate]
-val exchangeRates = MVar[ExchangeRates](Nil)
-val fetchExchangeRates = {
-  Task.deferFuture {
-    for {
-      response ← HttpRequest("https://api.fixer.io/latest").get
-      json = Json.parse(response.body)
-      base = defaultCurrencyMap(json.base.as[String])
-    } yield {
-      json.rates.as[Map[String, Double]].flatMap {
-        case (key, value) ⇒
-          defaultCurrencyMap.get(key).map { currency ⇒
-            base / currency(value)
-          }
-      }
-    }
-  }
+import my.will.be.done.squants.fx.{
+  FixerDotIo, MoneyContextSource, CachingExchangeRatesSource
 }
-val updateExchangeRates = {
-  for {
-    _ ← exchangeRates.take
-    rates ← fetchExchangeRates
-    _ ← exchangeRates.put(rates)
-  } yield {
-    rates
-  }
+case object FixerDotIoMoneyContextSource
+    extends FixerDotIo with MoneyContextSource with CachingExchangeRatesSource {
+  implicit val scheduler = global
+  implicit val executionContext = global
 }
-val fetchMoneyContext = {
-  exchangeRates.read.flatMap {
-    case Nil ⇒
-      updateExchangeRates
-    case fetchedRates ⇒
-      Task.now(fetchedRates)
-  }.map { rates ⇒
-    defaultMoneyContext withExchangeRates rates.toList
-  }
-}
-implicit def moneyContext: MoneyContext = {
-  Await.result(fetchMoneyContext.runAsync, Duration.Inf)
-}
+import FixerDotIoMoneyContextSource.moneyContext
 
 val faker = new com.github.javafaker.Faker
 
