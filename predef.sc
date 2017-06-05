@@ -5,6 +5,7 @@ val monixVersion = "2.3.0"
 
 Seq(
   "com.lihaoyi"           % ammoniteGroup         % ammonite.Constants.version,
+  "io.monix"             %% "monix"               % monixVersion,
   "io.circe"             %% "circe-core"          % circeVersion,
   "io.circe"             %% "circe-generic"       % circeVersion,
   "io.circe"             %% "circe-parser"        % circeVersion,
@@ -15,8 +16,7 @@ Seq(
   "org.typelevel"        %% "squants"             % "1.3.0",
   "net.ruippeixotog"     %% "scala-scraper"       % "2.0.0-RC2",
   "fr.hmil"              %% "roshttp"             % "2.0.1",
-  "eu.timepit"           %% "refined"             % "0.8.2",
-  "io.monix"             %% "monix"               % monixVersion
+  "eu.timepit"           %% "refined"             % "0.8.2"
 ).foreach(interp.load.ivy(_))
 @
 val shellSession = ammonite.shell.ShellSession()
@@ -32,6 +32,7 @@ import scala.util.{ Try, Success, Failure, Random }
 import io.circe.generic.auto._, io.circe.syntax._
 import rapture.json.jsonBackends.circe._
 import rapture.json.Json
+import rapture.json.dictionaries.dynamic._
 import io.circe.{Json ⇒ Circe}
 import io.circe.optics.JsonPath
 
@@ -52,14 +53,62 @@ import gnieh.diffson.circe._
 import squants.energy.EnergyConversions._
 import squants.energy.PowerConversions._
 import squants.information.InformationConversions._
-import squants.market.MoneyConversions._
+import squants.market._, MoneyConversions._
 import squants.space._, LengthConversions._
 import squants.time.TimeConversions._
 
+import scala.concurrent.Future
+import scala.concurrent.Await
 import scala.concurrent.duration.{FiniteDuration, Duration}
 implicit def durationToFiniteDuration(duration: Duration): FiniteDuration = duration match {
   case finiteDuration: FiniteDuration ⇒
     finiteDuration
+}
+
+import monix.execution.Scheduler.Implicits.global
+import monix.eval.{MVar, Task}
+
+import fr.hmil.roshttp.HttpRequest
+
+type ExchangeRates = Iterable[CurrencyExchangeRate]
+val exchangeRates = MVar[ExchangeRates](Nil)
+val fetchExchangeRates = {
+  Task.deferFuture {
+    for {
+      response ← HttpRequest("https://api.fixer.io/latest").get
+      json = Json.parse(response.body)
+      base = defaultCurrencyMap(json.base.as[String])
+    } yield {
+      json.rates.as[Map[String, Double]].flatMap {
+        case (key, value) ⇒
+          defaultCurrencyMap.get(key).map { currency ⇒
+            base / currency(value)
+          }
+      }
+    }
+  }
+}
+val updateExchangeRates = {
+  for {
+    _ ← exchangeRates.take
+    rates ← fetchExchangeRates
+    _ ← exchangeRates.put(rates)
+  } yield {
+    rates
+  }
+}
+val fetchMoneyContext = {
+  exchangeRates.read.flatMap {
+    case Nil ⇒
+      updateExchangeRates
+    case fetchedRates ⇒
+      Task.now(fetchedRates)
+  }.map { rates ⇒
+    defaultMoneyContext withExchangeRates rates.toList
+  }
+}
+implicit def moneyContext: MoneyContext = {
+  Await.result(fetchMoneyContext.runAsync, Duration.Inf)
 }
 
 val faker = new com.github.javafaker.Faker
@@ -111,10 +160,6 @@ private[this] def whoami = {
 private[this] def date = {
   LocalDateTime.now.format(DateTimeFormatter.ofPattern("E, MMMM | YYYY-MM-dd HH:mm:ss"))
 }
-
-import fr.hmil.roshttp.HttpRequest
-import monix.execution.Scheduler.Implicits.global
-import scala.concurrent.Future
 
 import eu.timepit.refined._
 import eu.timepit.refined.api.Refined
