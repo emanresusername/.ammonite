@@ -210,6 +210,13 @@ def refinedGetHtmlDoc(url: String Refined Url): Future[Document] = {
   getHtmlDoc(HttpRequest(url))
 }
 
+def getBody(url: String Refined Url): Future[String] = {
+  HttpRequest(url).get.map(_.body)
+}
+def getJson(url: String Refined Url): Future[Json] = {
+  getBody(url).map(Json.parse(_))
+}
+
 def getHtmlDoc(url: String): Future[Document] = {
   Future {
     refineV[Url].unsafeFrom(url)
