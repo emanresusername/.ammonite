@@ -58,8 +58,8 @@ import squants.market._, MoneyConversions._
 import squants.space._, LengthConversions._
 import squants.time.TimeConversions._
 
-import scala.concurrent.Future
-import scala.concurrent.Await
+import scala.concurrent.{Future, Await}
+import scala.concurrent.duration.Duration
 
 import monix.execution.Scheduler.Implicits.global
 import fr.hmil.roshttp.HttpRequest
@@ -137,10 +137,9 @@ def abvPrice(cost: squants.Money, proof: Int, volume: squants.Volume): AbvPrice 
   abvPrice(cost = cost, abv = proof / 2.0, volume = volume)
 }
 
-
+// TODO: this interferes with amm's `|>`
 import net.ruippeixotog.scalascraper.dsl.DSL._
 import net.ruippeixotog.scalascraper.dsl.DSL.Extract._
-import net.ruippeixotog.scalascraper.dsl.DSL.Parse._
 import net.ruippeixotog.scalascraper.model.Document
 import net.ruippeixotog.scalascraper.browser.{HtmlUnitBrowser, JsoupBrowser}
 import net.ruippeixotog.scalascraper.util.ProxyUtils
@@ -176,7 +175,7 @@ def withoutProxys[T](f: ⇒ Future[T]): Future[T] = {
   }
 }
 def withoutProxys[T](f: ⇒ T): T = {
-  withoutProxys { Future { f } }.value.get.get
+  Await.result(withoutProxys { Future { f } }, Duration.Inf)
 }
 
 lazy val jsoupBrowser = JsoupBrowser.typed()
