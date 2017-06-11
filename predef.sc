@@ -62,6 +62,7 @@ import scala.concurrent.{Future, Await}
 import scala.concurrent.duration.Duration
 
 import monix.execution.Scheduler.Implicits.global
+import monix.reactive.{Consumer, Observable}
 import fr.hmil.roshttp.HttpRequest
 
 import my.will.be.done.squants.fx.{
@@ -268,6 +269,44 @@ def datesBlazinTracks(dates: LocalDate*): Seq[String] = {
 def todaysBlazinTracks: Seq[String] = {
   datesBlazinTracks(LocalDate.now)
 }
+
+case class UrbanDefinition(
+  host: String,
+  word: String,
+  href: String,
+  meaning: String,
+  example: Option[String],
+  tagHrefs: Iterable[String]
+) {
+  def url(href: String): String = host ++ href
+  def wordUrl: String = url(href)
+  def tagUrls: Iterable[String] = tagHrefs.map(url)
+  def tags: Iterable[String] = tagHrefs.map(_.split("=").last)
+}
+def urbanDefine(term: String): Observable[UrbanDefinition] = {
+  val host = "https://www.urbandictionary.com"
+  for {
+    htmlDoc ← Observable.fromFuture(getHtmlDoc(HttpRequest(s"$host/define.php")
+                                    .withQueryParameter("term", term)))
+    defPanel ← Observable(htmlDoc >> elementList(".def-panel"):_*)
+    anchor = defPanel >> element("a.word")
+    word = anchor.text
+    href = anchor.attr("href")
+    meaning = defPanel >> text(".meaning")
+    example = defPanel >?> text(".example")
+    tagHrefs = defPanel >> attrs("href")(".tags>a[href]")
+  } yield {
+    UrbanDefinition(
+      host = host,
+      word = word,
+      href = href,
+      meaning = meaning,
+      example = example,
+      tagHrefs = tagHrefs
+    )
+  }
+}
+def printlnSync[T]: Consumer.Sync[T, Unit] = Consumer.foreach[T](println)
 
 repl.prompt.bind(
   Seq(
