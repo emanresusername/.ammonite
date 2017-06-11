@@ -155,25 +155,47 @@ def privoxify: Unit = {
 }
 privoxify
 
-def withoutProxys[T](f: ⇒ Future[T]): Future[T] = {
+def withoutHttpProxy[T](f: ⇒ Future[T]): Future[T] = {
   Future {
     val httpProxy = ProxyUtils.getProxy
-    val socksProxy = ProxyUtils.getSocksProxy
     ProxyUtils.removeProxy
-    ProxyUtils.removeSocksProxy
-    httpProxy → socksProxy
+    httpProxy
   }.flatMap {
-    case (httpProxy, socksProxy) ⇒
+    case httpProxy ⇒
       f.andThen {
         case _ ⇒
           httpProxy.foreach {
             case (host, port) ⇒ ProxyUtils.setProxy(host, port)
           }
+      }
+  }
+}
+
+def withoutSocksProxy[T](f: ⇒ Future[T]): Future[T] = {
+  Future {
+    val socksProxy = ProxyUtils.getSocksProxy
+    ProxyUtils.removeSocksProxy
+    socksProxy
+  }.flatMap {
+    case socksProxy ⇒
+      f.andThen {
+        case _ ⇒
           socksProxy.foreach {
             case (host, port) ⇒ ProxyUtils.setSocksProxy(host, port)
           }
       }
   }
+}
+
+def withoutProxys[T](f: ⇒ Future[T]): Future[T] = {
+  withoutHttpProxy(withoutSocksProxy(f))
+}
+
+def withoutHttpProxy[T](f: ⇒ T): T = {
+  Await.result(withoutHttpProxy { Future { f } }, Duration.Inf)
+}
+def withoutSocksProxy[T](f: ⇒ T): T = {
+  Await.result(withoutSocksProxy { Future { f } }, Duration.Inf)
 }
 def withoutProxys[T](f: ⇒ T): T = {
   Await.result(withoutProxys { Future { f } }, Duration.Inf)
@@ -246,7 +268,7 @@ def celebrityNetworth(query: String): Future[String] = {
 
 def blazinTracks: Seq[(LocalDate, String)] = {
   val host = "http://www.hiphopearly.com"
-  val recentTracks = withoutProxys(withHtmlUnitBrowser(_.get(host)))
+  val recentTracks = withoutHttpProxy(withHtmlUnitBrowser(_.get(host)))
   val dateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMMdd")
   for {
     trackListing <- recentTracks >> elementList(".track-listing")
