@@ -328,7 +328,11 @@ def urbanDefine(term: String): Observable[UrbanDefinition] = {
     )
   }
 }
-def printlnSync[T]: Consumer.Sync[T, Unit] = Consumer.foreach[T](println)
+implicit def parallelism: Int = Runtime.getRuntime().availableProcessors
+def printlnParallelSync[T](implicit parallelism: Int): Consumer[T, Unit] = {
+  Consumer.foreachParallel(parallelism)(println)
+}
+def printlnSerialSync[T]: Consumer[T, Unit] = Consumer.foreach(println)
 
 repl.prompt.bind(
   Seq(
