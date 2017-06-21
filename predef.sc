@@ -32,7 +32,7 @@ import scala.util.{ Try, Success, Failure, Random }
 
 import io.circe.generic.auto._, io.circe.syntax._
 import rapture.json.jsonBackends.circe._
-import rapture.json.Json
+import rapture.json._
 import rapture.json.dictionaries.dynamic._
 import io.circe.{Json ⇒ Circe}
 import io.circe.optics.JsonPath
@@ -63,6 +63,7 @@ import scala.concurrent.duration.Duration
 
 import monix.execution.Scheduler.Implicits.global
 import monix.reactive.{Consumer, Observable}
+import monix.eval.{Task, Coeval}
 import fr.hmil.roshttp.HttpRequest
 
 import my.will.be.done.squants.fx.{
