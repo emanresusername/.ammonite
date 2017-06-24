@@ -17,7 +17,8 @@ Seq(
   "com.propensive"             %% "rapture-json-circe"  % raptureVersion,
   "com.github.javafaker"        % "javafaker"           % "0.+",
   "net.ruippeixotog"           %% "scala-scraper"       % "2.0.0-RC2",
-  "eu.timepit"                 %% "refined"             % "0.8.2"
+  "eu.timepit"                 %% "refined"             % "0.8.2",
+  "org.scala-graph"            %% "graph-dot"           % "1.11.5"
 ).foreach(interp.load.ivy(_))
 @
 val shellSession = ammonite.shell.ShellSession()
@@ -289,6 +290,11 @@ def datesBlazinTracks(dates: LocalDate*): Seq[String] = {
       url
   }
 }
+def blazinTracksSince(daysAgo: Int): Seq[String] = {
+  datesBlazinTracks(
+    Stream.iterate(LocalDate.now)(_.minusDays(1)).take(daysAgo):_*
+  )
+}
 def todaysBlazinTracks: Seq[String] = {
   datesBlazinTracks(LocalDate.now)
 }
@@ -344,3 +350,97 @@ repl.prompt.bind(
     Option("\nᕕ( ᐛ )ᕗ ")
   ).flatten.mkString
 )
+
+def cmd(op: String)(args: Shellable*): Future[CommandResult] = Future {
+  %%.applyDynamic(op)(args:_*)
+}
+
+import scalax.collection.Graph
+import scalax.collection.GraphPredef._, scalax.collection.GraphEdge._
+  // NOTE: scala concurrent triemap doesn't cross compile to scalajs
+import java.util.concurrent.ConcurrentHashMap
+
+// NOTE: this is just to play with scalagraph and monix. the wheel: https://github.com/martido/brew-graph
+type StringGraph = Graph[String, DiEdge]
+def brewDependencyGraph: Task[StringGraph] = {
+  val rootGraphMap = {
+    new ConcurrentHashMap[String, Observable[StringGraph]]
+  }
+
+  def brewLines(args: Shellable*): Observable[String] = {
+    Observable.fromFuture(cmd("brew")(args:_*))
+      .map(_.out.lines)
+      .flatMap(Observable.fromIterable)
+  }
+
+  def cachedRootGraph(root: String, putIfAbsent: Observable[StringGraph]): Observable[StringGraph] = {
+    val firstRun = putIfAbsent.cache
+    rootGraphMap.putIfAbsent(root, firstRun) match {
+      case null ⇒
+        firstRun
+      case cached ⇒
+        cached
+    }
+  }
+
+  def rootGraph(formula: String): Observable[StringGraph] = {
+    brewLines("deps", formula).flatMap { dep ⇒
+      Observable.cons(
+        Graph(formula ~> dep),
+        cachedRootGraph(dep, rootGraph(dep))
+      )
+    }.foldLeftF(Graph.empty: StringGraph) {
+      case (graph, subGraph) ⇒
+        graph ++ subGraph
+    }
+  }
+
+  brewLines("list").flatMap { root ⇒
+    Observable.cons(
+      Graph(root): StringGraph,
+      cachedRootGraph(root, rootGraph(root))
+    )
+  }.foldLeftL(Graph.empty: StringGraph) {
+    case (graph, subGraph) ⇒
+      graph ++ subGraph
+  }
+}
+
+import scalax.collection.io.dot, dot._, implicits._
+
+def toDot[N, E[X] <: EdgeLikeIn[X]](
+  graph: Graph[N, E],
+  directed: Boolean,
+  edgeTransformer: Graph[N,E]#EdgeT => Option[DotEdgeStmt],
+  nodeTransformer: Graph[N,E]#NodeT => Option[DotNodeStmt],
+  id: Option[dot.Id] = None,
+  attrStmts: List[DotAttrStmt] = Nil,
+  attrList: List[DotAttr] = Nil
+): String = {
+  val root = DotRootGraph (
+    directed = directed,
+    id        = id,
+    attrStmts = attrStmts,
+    attrList  = attrList
+  )
+  graph.toDot(
+    dotRoot = root,
+    edgeTransformer = edgeTransformer(_).map(root → _),
+    iNodeTransformer = Option(nodeTransformer(_).map(root → _))
+  )
+}
+
+def stringGraphNodeTransformer(innerNode: StringGraph#NodeT):
+    Option[DotNodeStmt] =
+  Option(DotNodeStmt('"' +: innerNode.toString :+ '"', Nil))
+
+def stringGraphEdgeTransformer(innerEdge: StringGraph#EdgeT):
+    Option[DotEdgeStmt] = innerEdge.edge match {
+  case DiEdge(source, target) =>
+    Option(
+      DotEdgeStmt(
+        '"' +: source.toString :+ '"',
+        '"' +: target.toString :+ '"'
+      )
+    )
+}
