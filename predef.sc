@@ -260,7 +260,7 @@ def copyExternalIp: Future[String] = {
 }
 def celebrityNetworth(query: String): Future[String] = {
   for {
-    resultsDoc <- getHtmlDoc(s"http://www.celebritynetworth.com/dl/${query.replaceAllLiterally(" ", "-")}/")
+    resultsDoc <- getHtmlDoc(s"https://www.celebritynetworth.com/dl/${query.replaceAllLiterally(" ", "-")}/")
     href = resultsDoc >> attr("href")(".search_result.lead>a")
     resultDoc <- getHtmlDoc(href)
   } yield {
