@@ -60,7 +60,7 @@ import squants.space._, LengthConversions._
 import squants.time.TimeConversions._
 
 import scala.concurrent.{Future, Await}
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration._
 
 import monix.execution.Scheduler.Implicits.global
 import monix.reactive.{Consumer, Observable}
