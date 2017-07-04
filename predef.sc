@@ -6,7 +6,7 @@ val circeVersion = "0.8.+"
 val raptureVersion = "2.0.0-M9"
 val ammoniteGroup = s"ammonite-shell_${scala.util.Properties.versionNumberString}"
 
-Seq(
+interp.load.ivy(
   "com.lihaoyi"                 % ammoniteGroup         % ammonite.Constants.version,
   "com.github.emanresusername"  % "squants-fx"          % "0.0.1",
   "io.circe"                   %% "circe-core"          % circeVersion,
@@ -19,7 +19,7 @@ Seq(
   "net.ruippeixotog"           %% "scala-scraper"       % "2.0.0-RC2",
   "eu.timepit"                 %% "refined"             % "0.8.2",
   "org.scala-graph"            %% "graph-dot"           % "1.11.5"
-).foreach(interp.load.ivy(_))
+)
 @
 val shellSession = ammonite.shell.ShellSession()
 import shellSession._
