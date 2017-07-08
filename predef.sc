@@ -150,7 +150,6 @@ import net.ruippeixotog.scalascraper.util.ProxyUtils
 def torify: Unit = {
   ProxyUtils.setSocksProxy("localhost", 9050)
 }
-torify
 
 def privoxify: Unit = {
   ProxyUtils.setProxy("localhost", 8118)
