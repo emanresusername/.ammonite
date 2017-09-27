@@ -5,8 +5,10 @@ interp.repositories() ++= Seq(
 val ammoniteGroup = s"ammonite-shell_${scala.util.Properties.versionNumberString}"
 
 interp.load.ivy(
-  "com.lihaoyi"              % ammoniteGroup           % ammonite.Constants.version,
-  "com.gitlab.gitjab.searx" %% "client"                % "0.0.1"
+  "com.lihaoyi"                          % ammoniteGroup    % ammonite.Constants.version,
+  "net.ruippeixotog"                    %% "scala-scraper"  % "2.0.0",
+  "com.gitlab.gitjab.searx"             %% "client"         % "0.0.1",
+  "com.github.emanresusername.scalauto" %% "scalandroid"    % "0.0.2"
 )
 @
 val shellSession = ammonite.shell.ShellSession()
@@ -57,20 +59,36 @@ def clippaste: String = {
   )
 }
 
-private[this] def gitBranch = {
-  scala.util.Try {
-    (%%git('status, "-b", "--porcelain")).out.lines.head.drop(3)
-  }.toOption
+// TODO: conflicts with ammonite |>
+import net.ruippeixotog.scalascraper.dsl.DSL._
+import net.ruippeixotog.scalascraper.dsl.DSL.Extract._
+import net.ruippeixotog.scalascraper.model.Document
+import net.ruippeixotog.scalascraper.browser.{HtmlUnitBrowser, JsoupBrowser}
+import net.ruippeixotog.scalascraper.util.ProxyUtils
+
+def torify: Unit = {
+  ProxyUtils.setSocksProxy("localhost", 9050)
 }
 
-private[this] def hostname = {
-  (%%hostname).out.lines.head
+def privoxify: Unit = {
+  ProxyUtils.setProxy("localhost", 8118)
+}
+privoxify
+
+lazy val jsoupBrowser = JsoupBrowser.typed()
+// TODO: function because proxy settings locked in after first request (pre 2.0.0 release)
+def htmlUnitBrowser: HtmlUnitBrowser = {
+  HtmlUnitBrowser.typed()
+}
+def withHtmlUnitBrowser[T](f: (HtmlUnitBrowser) ⇒ T): T = {
+  val browser = htmlUnitBrowser
+  try {
+    f(browser)
+  } finally {
+    browser.clearCookies
+    browser.closeAll
+  }
 }
 
-private[this] def whoami = {
-  sys.env("USER")
-}
-
-private[this] def date = {
-  LocalDateTime.now.format(DateTimeFormatter.ofPattern("E, MMMM | YYYY-MM-dd HH:mm:ss"))
-}
+import my.will.be.done.scalauto.scalandroid._
+val droid = Scalandroid()
