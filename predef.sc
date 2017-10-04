@@ -6,9 +6,9 @@ val ammoniteGroup = s"ammonite-shell_${scala.util.Properties.versionNumberString
 
 interp.load.ivy(
   "com.lihaoyi"                          % ammoniteGroup    % ammonite.Constants.version,
-  "net.ruippeixotog"                    %% "scala-scraper"  % "2.0.0",
+  "com.github.emanresusername" %% "scalandroid"    % "0.0.8",
   "com.gitlab.gitjab.searx"             %% "client"         % "0.0.2",
-  "com.github.emanresusername" %% "scalandroid"    % "0.0.5"
+  "net.ruippeixotog"                    %% "scala-scraper"  % "2.0.0"
 )
 @
 val shellSession = ammonite.shell.ShellSession()
@@ -91,4 +91,4 @@ def withHtmlUnitBrowser[T](f: (HtmlUnitBrowser) ⇒ T): T = {
 }
 
 import my.will.be.done.scalandroid._
-val droid = Scalandroid()
+implicit val droid = Scalandroid()
