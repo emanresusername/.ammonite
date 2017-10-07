@@ -6,7 +6,7 @@ val ammoniteGroup = s"ammonite-shell_${scala.util.Properties.versionNumberString
 
 interp.load.ivy(
   "com.lihaoyi"                          % ammoniteGroup    % ammonite.Constants.version,
-  "com.github.emanresusername" %% "scalandroid"    % "0.0.8",
+  "com.github.emanresusername" %% "scalandroid"    % "0.0.9",
   "com.gitlab.gitjab.searx"             %% "client"         % "0.0.2",
   "net.ruippeixotog"                    %% "scala-scraper"  % "2.0.0"
 )
