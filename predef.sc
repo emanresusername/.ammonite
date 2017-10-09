@@ -91,4 +91,21 @@ def withHtmlUnitBrowser[T](f: (HtmlUnitBrowser) ⇒ T): T = {
 }
 
 import my.will.be.done.scalandroid._
-implicit val droid = Unicoid()
+lazy implicit val droid = Unicoid()
+
+implicit class FutureIterable[F](future: Future[Iterable[F]]) {
+  def observable: Observable[F] = {
+    Observable.fromFuture(future)
+      .flatMap(Observable.fromIterable)
+  }
+}
+
+import my.will.be.done.searx.client.Client
+import my.will.be.done.searx.model._
+lazy val searx = new Client("https://search.disroot.org")
+
+implicit class FutureSearch(search: Future[Search]) {
+  def results: Observable[Result] = {
+    search.map(_.results).observable
+  }
+}
