@@ -122,16 +122,10 @@ def droidWaitForResource(resourceId: String): Observable[UiNode] = {
     .headF
 }
 
-def droidCloseAll: CancelableFuture[Seq[String]] = {
-  (for {
-    keycode ← Observable(droid.keycode(Keycode.AppSwitch))
-    node ← droidWaitForResource(
-      "com.android.systemui:id/recents_close_all_button"
-    )
-  } yield {
-    Seq(
-      keycode,
-      droid.tap(node)
-    ).map(read! _)
-  }).headL.runAsync
+def droidCloseAll: Observable[InputStream] = {
+  Observable.cons(
+    droid.keycode(Keycode.AppSwitch),
+    droidWaitForResource("com.android.systemui:id/recents_close_all_button")
+      .map(droid.tap)
+  )
 }
