@@ -25,10 +25,12 @@ import scala.concurrent.{Future, Await}
 import scala.concurrent.duration._
 
 import monix.execution.Scheduler.Implicits.global
+import monix.execution.CancelableFuture
 import monix.reactive.{Consumer, Observable}
 import monix.eval.{Task, Coeval}
 import fr.hmil.roshttp.HttpRequest
 
+import java.io.InputStream
 import java.time
 import java.time.format.DateTimeFormatter
 import java.time.{LocalDate, LocalDateTime, Instant}
@@ -108,4 +110,28 @@ implicit class FutureSearch(search: Future[Search]) {
   def results: Observable[Result] = {
     search.map(_.results).observable
   }
+}
+
+def droidWaitForResource(resourceId: String): Observable[UiNode] = {
+  Observable
+    .repeatEval(droid.uiautomatorDump.findResource(resourceId))
+    .delayOnNext(0.5.second)
+    .flatMap { option ⇒
+      Observable.fromIterable(option.toIterable)
+    }
+    .headF
+}
+
+def droidCloseAll: CancelableFuture[Seq[String]] = {
+  (for {
+    keycode ← Observable(droid.keycode(Keycode.AppSwitch))
+    node ← droidWaitForResource(
+      "com.android.systemui:id/recents_close_all_button"
+    )
+  } yield {
+    Seq(
+      keycode,
+      droid.tap(node)
+    ).map(read! _)
+  }).headL.runAsync
 }
