@@ -129,3 +129,6 @@ def droidCloseAll: Observable[InputStream] = {
       .map(droid.tap)
   )
 }
+
+import java.awt.event.KeyEvent._
+val robot = new java.awt.Robot
