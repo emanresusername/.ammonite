@@ -132,3 +132,7 @@ def droidCloseAll: Observable[InputStream] = {
 
 import java.awt.event.KeyEvent._
 val robot = new java.awt.Robot
+
+def compoundInterest(principle: Double, rate: Double, perYear: Double, years: Double): Double = {
+  principle * math.pow((1 + (rate / perYear)), (perYear * years))
+}
