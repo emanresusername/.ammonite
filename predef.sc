@@ -8,7 +8,7 @@ interp.load.ivy(
   "com.lihaoyi"                          % ammoniteGroup    % ammonite.Constants.version,
   "com.github.emanresusername" %% "scalandroid"    % "0.0.12",
   "com.gitlab.gitjab.searx"             %% "client"         % "0.0.5",
-  "net.ruippeixotog"                    %% "scala-scraper"  % "2.0.0"
+  "net.ruippeixotog"                    %% "scala-scraper"  % "2.1.0"
 )
 @
 val shellSession = ammonite.shell.ShellSession()
@@ -66,30 +66,33 @@ import net.ruippeixotog.scalascraper.dsl.DSL._
 import net.ruippeixotog.scalascraper.dsl.DSL.Extract._
 import net.ruippeixotog.scalascraper.model.Document
 import net.ruippeixotog.scalascraper.browser.{HtmlUnitBrowser, JsoupBrowser}
-import net.ruippeixotog.scalascraper.util.ProxyUtils
 
-def torify: Unit = {
-  ProxyUtils.setSocksProxy("localhost", 9050)
-}
+import java.net.InetSocketAddress
+import com.gargoylesoftware.htmlunit.ProxyConfig
+import java.net.Proxy.Type.{HTTP, SOCKS}
 
-def privoxify: Unit = {
-  ProxyUtils.setProxy("localhost", 8118)
-}
-privoxify
-
-lazy val jsoupBrowser = JsoupBrowser.typed()
-// TODO: function because proxy settings locked in after first request (pre 2.0.0 release)
-def htmlUnitBrowser: HtmlUnitBrowser = {
-  HtmlUnitBrowser.typed()
-}
-def withHtmlUnitBrowser[T](f: (HtmlUnitBrowser) ⇒ T): T = {
-  val browser = htmlUnitBrowser
-  try {
-    f(browser)
-  } finally {
-    browser.clearCookies
-    browser.closeAll
+// TODO: add to scala-scraper
+case class Proxy(host: String, port: Int, isSocks: Boolean) {
+  def jsoup: java.net.Proxy = {
+    new java.net.Proxy(
+      if(isSocks) { SOCKS } else { HTTP },
+      new InetSocketAddress(host, port)
+    )
   }
+
+  def htmlunit: ProxyConfig = {
+    new ProxyConfig(host, port, isSocks)
+  }
+}
+
+lazy val tor = Proxy("localhost", 9050, true)
+lazy val privoxy = Proxy("localhost", 8118, false)
+
+def jsoupBrowser(proxy: Option[Proxy] = Option(privoxy)): JsoupBrowser = {
+  proxy.map(_.jsoup).fold(new JsoupBrowser)(p ⇒ new JsoupBrowser(proxy = p))
+}
+def htmlUnitBrowser(proxy: Option[Proxy] = Option(privoxy)): HtmlUnitBrowser = {
+  proxy.map(_.htmlunit).fold(new HtmlUnitBrowser)(p ⇒ new HtmlUnitBrowser(proxy = p))
 }
 
 import my.will.be.done.scalandroid._
