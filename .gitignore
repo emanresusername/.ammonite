@@ -1,5 +1,5 @@
 .DS_Store
-/cache/
-/history
-/session
+cache/
+history
+session
 nohup.out
